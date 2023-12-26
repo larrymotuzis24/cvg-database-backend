@@ -10,6 +10,7 @@ require('dotenv').config({ path: __dirname + '/.env.development' });
 
 
 const SECRET_KEY = process.env.SECRET_KEY ; // Use environment variable
+console.log(SECRET_KEY)
 
 // Function to authenticate user
 async function authenticateUser(username, providedPassword) {
