@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const  pool  = require('./db');
-require('dotenv').config({ path: __dirname + '/.env.development' });
+require('dotenv').config();
 
 
 
