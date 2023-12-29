@@ -1,16 +1,10 @@
-const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const router = express.Router();
-const  pool  = require('./db');
+const router = require('express').Router();
+const pool = require('./db'); // Make sure this is correctly importing your database pool
 require('dotenv').config();
 
-
-
-
-
-const SECRET_KEY = process.env.SECRET_KEY ; // Use environment variable
-console.log(SECRET_KEY)
+const SECRET_KEY = process.env.SECRET_KEY; // Ensure this is set in your environment
 
 // Function to authenticate user
 async function authenticateUser(username, providedPassword) {
@@ -19,7 +13,7 @@ async function authenticateUser(username, providedPassword) {
         const userResult = await pool.query(userQuery, [username]);
 
         if (userResult.rows.length === 0) {
-            return null;
+            return null; // No user found
         }
 
         const user = userResult.rows[0];
@@ -28,28 +22,27 @@ async function authenticateUser(username, providedPassword) {
         const isMatch = await bcrypt.compare(providedPassword, user.password);
 
         if (!isMatch) {
-            return null;
+            return null; // Password does not match
         }
 
         // Exclude the password from the user object before returning
         const { password, ...userWithoutPassword } = user;
         return userWithoutPassword;
     } catch (error) {
-        console.error('Error authenticating user:', error.message);
-        throw new Error('Error authenticating user: ' + error.message);
+        console.error('Error in authenticateUser:', error);
+        throw new Error('Error in authenticateUser: ' + error.message);
     }
 }
 
-
 // Function to generate token
-exports.generateToken = (user) => {
+function generateToken(user) {
     const payload = {
         id: user.id,
         username: user.username,
-        role: user.role // Include the user's role
+        role: user.role
     };
     return jwt.sign(payload, SECRET_KEY, { expiresIn: '24h' });
-};
+}
 
 router.post('/login', async (req, res) => {
     try {
@@ -60,11 +53,11 @@ router.post('/login', async (req, res) => {
             return res.status(401).send('Authentication failed');
         }
 
-        const token = exports.generateToken(user);
-        res.send({ user, token });
+        const token = generateToken(user);
+        res.json({ user, token });
     } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).send('Server error');
+        console.error('Login route error:', error);
+        res.status(500).send('Internal Server Error');
     }
 });
 
