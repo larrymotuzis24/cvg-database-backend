@@ -240,6 +240,8 @@ app.get("/api/jobs", async (req, res) => {
       totalItems: totalItems,
     });
   } catch (error) {
+    console.error("Error executing query", error.message);
+    console.error("Detailed stack:", error.stack);
     console.error("Error executing query", error);
     res.status(500).send("Internal Server Error");
   }
