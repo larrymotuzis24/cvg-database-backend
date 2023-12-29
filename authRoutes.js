@@ -35,6 +35,7 @@ async function authenticateUser(username, providedPassword) {
         const { password, ...userWithoutPassword } = user;
         return userWithoutPassword;
     } catch (error) {
+        console.error('Error authenticating user:', error.message);
         throw new Error('Error authenticating user: ' + error.message);
     }
 }
