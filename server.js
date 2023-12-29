@@ -5,7 +5,9 @@ const app = express();
 const port = 5000;
 const pool = require("./db.js");
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: 'https://seahorse-app-k3ujm.ondigitalocean.app'
+}));
 app.use("/api", authRoutes);
 
 //create new job
