@@ -1,0 +1,16 @@
+version: "3.6"
+name: cvg
+services:
+  postgres:
+    image: postgres:14
+    ports:
+      - "5432:5432"
+    restart: always
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+volumes:
+  db_data:

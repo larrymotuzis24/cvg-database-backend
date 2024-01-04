@@ -2,11 +2,11 @@ const express = require("express");
 const cors = require("cors");
 const authRoutes = require("./authRoutes.js");
 const app = express();
-const port = 5000;
+const port = 4000;
 const pool = require("./db.js");
 app.use(express.json());
 app.use(cors({
-  origin: 'https://seahorse-app-k3ujm.ondigitalocean.app'
+  origin:['https://seahorse-app-k3ujm.ondigitalocean.app', 'http://localhost:3000']
 }));
 app.use("/api", authRoutes);
 
