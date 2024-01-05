@@ -1,8 +1,9 @@
 const express = require("express");
 const cors = require("cors");
 const authRoutes = require("./authRoutes.js");
+const XLSX = require('xlsx');
 const app = express();
-const port = 4000;
+const port = 5000;
 const pool = require("./db.js");
 app.use(express.json());
 app.use(cors({
@@ -296,6 +297,30 @@ app.delete("/api/jobs/:cvgJobNumber", async (req, res) => {
   } catch (error) {
     console.error("Error deleting job", error);
     res.status(500).send("Internal Server Error");
+  }
+});
+
+app.get("/api/export-to-excel", async (req, res) => {
+  try {
+      // Fetch data from your database
+      const result = await pool.query('SELECT * FROM client_data'); // Adjust the query as needed
+      const jsonData = result.rows;
+
+      // Convert data to Excel format
+      const worksheet = XLSX.utils.json_to_sheet(jsonData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+
+      // Set response headers for file download
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=export.xlsx');
+
+      // Send the workbook
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+      res.send(excelBuffer);
+  } catch (error) {
+      console.error("Error exporting to Excel", error);
+      res.status(500).send("Internal Server Error");
   }
 });
 
