@@ -3,7 +3,7 @@ const cors = require("cors");
 const authRoutes = require("./authRoutes.js");
 const XLSX = require('xlsx');
 const app = express();
-const port = process.env.PORT || 4000;
+const port = 5000;
 const pool = require("./db.js");
 app.use(express.json());
 app.use(cors({
