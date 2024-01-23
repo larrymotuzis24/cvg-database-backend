@@ -19,8 +19,8 @@ app.post("/api/jobs", async (req, res) => {
       facility,
       client_code,
       client_company,
-      client_contact_person,
-      client_phone_number,
+      client_contact,
+      client_address,
       property_code,
       description,
       location,
@@ -30,18 +30,17 @@ app.post("/api/jobs", async (req, res) => {
       due_date,
       original_fee_quote,
       original_retainer,
-      original_retainer_received,
+      original_retainer_check_and_date,
       updated_quote,
       updated_retainer,
       updated_check_number_date,
       status_comments,
       invoice_num_and_date_sent,
       received_payment,
-      payment_check_number_date,
-      revised_invoice_and_date_sent,
-      revised_payment,
-      revised_check_number_date,
-      due_to_cvg,
+      received_check_and_date,
+      updated_invoice_and_date_sent,
+      updated_received_payment,
+      check_number_and_date,
       paid_in_full,
       staff1,
       staff1_payment,
@@ -56,33 +55,52 @@ app.post("/api/jobs", async (req, res) => {
       comments,
     } = req.body;
 
+    original_fee_quote = original_fee_quote ? Number(original_fee_quote) : null;
+    original_retainer = original_retainer ? Number(original_retainer) : null;
+    updated_retainer = updated_retainer ? Number(updated_retainer) : null;
+    received_payment = received_payment ? Number(received_payment) : null;
+    updated_received_payment = updated_received_payment ? Number(updated_received_payment) : null;
+    updated_quote = updated_quote ? Number(updated_quote) : null;
+
+    console.log('Processed job data before DB insertion:', {
+      original_fee_quote, 
+      original_retainer,
+      updated_retainer,
+      received_payment,
+      updated_received_payment,
+      updated_quote,
+      // ... other fields ...
+  });
+  
+
     const insertQuery = `
-  INSERT INTO client_data (
-      cvg_job_number, 
-      facility, 
+    INSERT INTO client_data (
+      cvg_job_number,
+      facility,
       client_code,
-      client_company, 
-      client_contact_person, 
-      client_phone_number,
+      client_company,
+      client_contact,
+      client_address,
       property_code,
-      description, location,
+      description,
+      location,
       scope_code,
-      scope, date_opened,
+      scope,
+      date_opened,
       due_date,
       original_fee_quote,
       original_retainer,
-      original_retainer_received,
+      original_retainer_check_and_date,
       updated_quote,
       updated_retainer,
       updated_check_number_date,
       status_comments,
       invoice_num_and_date_sent,
       received_payment,
-      payment_check_number_date,
-      revised_invoice_and_date_sent,
-      revised_payment,
-      revised_check_number_date,
-      due_to_cvg,
+      received_check_and_date,
+      updated_invoice_and_date_sent,
+      updated_received_payment,
+      check_number_and_date,
       paid_in_full,
       staff1,
       staff1_payment,
@@ -95,15 +113,16 @@ app.post("/api/jobs", async (req, res) => {
       staff3_check_number_date,
       net_mlc,
       comments
-  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39)`;
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38);`;
+  
 
     await pool.query(insertQuery, [
       cvg_job_number,
       facility,
       client_code,
       client_company,
-      client_contact_person,
-      client_phone_number,
+      client_contact,
+      client_address,
       property_code,
       description,
       location,
@@ -113,18 +132,17 @@ app.post("/api/jobs", async (req, res) => {
       due_date,
       original_fee_quote,
       original_retainer,
-      original_retainer_received,
+      original_retainer_check_and_date,
       updated_quote,
       updated_retainer,
       updated_check_number_date,
       status_comments,
       invoice_num_and_date_sent,
       received_payment,
-      payment_check_number_date,
-      revised_invoice_and_date_sent,
-      revised_payment,
-      revised_check_number_date,
-      due_to_cvg,
+      received_check_and_date,
+      updated_invoice_and_date_sent,
+      updated_received_payment,
+      check_number_and_date,
       paid_in_full,
       staff1,
       staff1_payment,
@@ -136,7 +154,7 @@ app.post("/api/jobs", async (req, res) => {
       staff3_payment,
       staff3_check_number_date,
       net_mlc,
-      comments,
+      comments
     ]);
 
     res.status(201).send("Job added successfully");
@@ -159,8 +177,6 @@ app.get("/api/jobs", async (req, res) => {
       zipCode,
       openedStartDate,
       openedEndDate,
-      dueStartDate,
-      dueEndDate,
       staffMember,
     } = req.query;
 
@@ -188,7 +204,6 @@ app.get("/api/jobs", async (req, res) => {
       filterValues.push(`%${zipCode}%`);
     }
 
-    // Inside your '/api/jobs' route
     if (openedStartDate && openedEndDate) {
       filterClauses.push(
         `date_opened BETWEEN $${filterValues.length + 1} AND $${
