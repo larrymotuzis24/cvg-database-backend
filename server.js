@@ -172,15 +172,14 @@ app.get("/api/jobs", async (req, res) => {
 
     // Filter parameters
     const {
-      clientName,
+      cvg_job_number, 
+      scope_code, 
+      client_company,
       propertyType,
-      reportType,
-      zipCode,
-      openedStartDate,
-      openedEndDate,
+      location,
       staffMember,
-      cvg_job_number, // Newly added cvg_job_number filter
-      scope_code, // Newly added scope_code filter
+      openedStartDate,
+      openedEndDate
     } = req.query;
 
     // Initialize filter values and clauses arrays
@@ -188,21 +187,18 @@ app.get("/api/jobs", async (req, res) => {
     const filterClauses = [];
 
     // Dynamic filter construction based on provided query parameters
-    if (clientName) {
+    if (client_company) {
       filterClauses.push(`client_company ILIKE $${filterValues.length + 1}`);
-      filterValues.push(`%${clientName}%`);
+      filterValues.push(`%${client_company}%`);
     }
     if (propertyType) {
       filterClauses.push(`property_code ILIKE $${filterValues.length + 1}`);
       filterValues.push(`%${propertyType}%`);
     }
-    if (reportType) {
-      filterClauses.push(`report_type ILIKE $${filterValues.length + 1}`);
-      filterValues.push(`%${reportType}%`);
-    }
-    if (zipCode) {
-      filterClauses.push(`zip_code ILIKE $${filterValues.length + 1}`);
-      filterValues.push(`%${zipCode}%`);
+  
+    if (location) {
+      filterClauses.push(`location ILIKE $${filterValues.length + 1}`);
+      filterValues.push(`%${location}%`);
     }
     if (cvg_job_number) {
       filterClauses.push(`cvg_job_number = $${filterValues.length + 1}`);
@@ -212,7 +208,7 @@ app.get("/api/jobs", async (req, res) => {
       filterClauses.push(`scope_code = $${filterValues.length + 1}`);
       filterValues.push(scope_code);
     }
-    // Additional filters (e.g., date range, staff member) continue in a similar pattern...
+    
 
     if (openedStartDate && openedEndDate) {
       filterClauses.push(`date_opened BETWEEN $${filterValues.length + 1} AND $${filterValues.length + 2}`);
@@ -225,27 +221,34 @@ app.get("/api/jobs", async (req, res) => {
       filterValues.push(openedEndDate);
     }
 
-    if (staffMember) {
-      filterClauses.push(`staff_member ILIKE $${filterValues.length + 1}`);
-      filterValues.push(`%${staffMember}%`);
-    }
 
-    // Compile the WHERE clause from the filter clauses
+
+if (staffMember) {
+  const staffMemberFilter = `
+    (staff1 ILIKE $${filterValues.length + 1} OR 
+    staff2 ILIKE $${filterValues.length + 1} OR 
+    staff3 ILIKE $${filterValues.length + 1})
+  `;
+  filterClauses.push(staffMemberFilter);
+  filterValues.push(`%${staffMember}%`); 
+}
+
+
+
+
     const whereClause = filterClauses.length > 0 ? `WHERE ${filterClauses.join(" AND ")}` : "";
 
-    // Formulate the main query with pagination and filters
+
     const query = `SELECT * FROM client_data ${whereClause} ORDER BY date_opened DESC, cvg_job_number LIMIT $${filterValues.length + 1} OFFSET $${filterValues.length + 2}`;
     const result = await pool.query(query, [...filterValues, pageSize, (page - 1) * pageSize]);
 
-    // Formulate the count query to get the total number of records for pagination
     const countQuery = `SELECT COUNT(*) FROM client_data ${whereClause}`;
     const countResult = await pool.query(countQuery, filterValues);
     const totalItems = parseInt(countResult.rows[0].count);
 
-    // Calculate the total number of pages
+
     const totalPages = Math.ceil(totalItems / pageSize);
 
-    // Send the paginated and filtered results
     res.json({
       data: result.rows,
       currentPage: page,
@@ -264,20 +267,18 @@ app.put("/api/jobs/:currentCvgJobNumber", async (req, res) => {
     const { currentCvgJobNumber } = req.params;
     const updateFields = req.body;
 
-    // Start building the query
+
     let updateQuery = "UPDATE client_data SET ";
     const queryParams = [];
 
-    // Add each field to the query
+
     Object.keys(updateFields).forEach((key, index) => {
       updateQuery += `${key} = $${index + 1}, `;
       queryParams.push(updateFields[key]);
     });
-
-    // Remove the last comma and space
     updateQuery = updateQuery.slice(0, -2);
 
-    // Add the WHERE clause
+
     updateQuery += ` WHERE cvg_job_number = $${queryParams.length + 1}`;
     queryParams.push(currentCvgJobNumber);
 
@@ -311,8 +312,8 @@ app.delete("/api/jobs/:cvgJobNumber", async (req, res) => {
 
 app.get("/api/export-to-excel", async (req, res) => {
   try {
-      // Fetch data from your database
-      const result = await pool.query('SELECT * FROM client_data'); // Adjust the query as needed
+ 
+      const result = await pool.query('SELECT * FROM client_data'); 
       const jsonData = result.rows;
 
       // Convert data to Excel format
@@ -320,7 +321,7 @@ app.get("/api/export-to-excel", async (req, res) => {
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
 
-      // Set response headers for file download
+    
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename=export.xlsx');
 
