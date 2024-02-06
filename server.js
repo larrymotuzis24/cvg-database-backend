@@ -205,7 +205,7 @@ app.get("/api/jobs", async (req, res) => {
       filterValues.push(cvg_job_number);
     }
     if (scope_code) {
-      filterClauses.push(`scope_code = $${filterValues.length + 1}`);
+      filterClauses.push(`scope_code ILIKE $${filterValues.length + 1}`);
       filterValues.push(scope_code);
     }
     
