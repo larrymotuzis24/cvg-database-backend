@@ -3,7 +3,7 @@ const cors = require("cors");
 const authRoutes = require("./authRoutes.js");
 const XLSX = require('xlsx');
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5001;
 const pool = require("./db.js");
 app.use(express.json());
 app.use(cors({
@@ -164,12 +164,13 @@ app.post("/api/jobs", async (req, res) => {
   }
 });
 
-//get jobs and paginate them
 app.get("/api/jobs", async (req, res) => {
   try {
-    // Retrieve pagination and filter parameters from the query string
+    // Pagination parameters
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 30;
+
+    // Filter parameters
     const {
       clientName,
       propertyType,
@@ -178,38 +179,43 @@ app.get("/api/jobs", async (req, res) => {
       openedStartDate,
       openedEndDate,
       staffMember,
+      cvg_job_number, // Newly added cvg_job_number filter
+      scope_code, // Newly added scope_code filter
     } = req.query;
 
-    // Construct the WHERE clause based on filters
+    // Initialize filter values and clauses arrays
     const filterValues = [];
     const filterClauses = [];
+
+    // Dynamic filter construction based on provided query parameters
     if (clientName) {
-      filterClauses.push(
-        `client_company ILIKE $${filterValues.length + 1}::text`
-      );
+      filterClauses.push(`client_company ILIKE $${filterValues.length + 1}`);
       filterValues.push(`%${clientName}%`);
     }
     if (propertyType) {
-      filterClauses.push(
-        `property_code ILIKE $${filterValues.length + 1}::text`
-      );
+      filterClauses.push(`property_code ILIKE $${filterValues.length + 1}`);
       filterValues.push(`%${propertyType}%`);
     }
     if (reportType) {
-      filterClauses.push(`scope_code ILIKE $${filterValues.length + 1}::text`);
+      filterClauses.push(`report_type ILIKE $${filterValues.length + 1}`);
       filterValues.push(`%${reportType}%`);
     }
     if (zipCode) {
-      filterClauses.push(`location ILIKE $${filterValues.length + 1}::text`);
+      filterClauses.push(`zip_code ILIKE $${filterValues.length + 1}`);
       filterValues.push(`%${zipCode}%`);
     }
+    if (cvg_job_number) {
+      filterClauses.push(`cvg_job_number = $${filterValues.length + 1}`);
+      filterValues.push(cvg_job_number);
+    }
+    if (scope_code) {
+      filterClauses.push(`scope_code = $${filterValues.length + 1}`);
+      filterValues.push(scope_code);
+    }
+    // Additional filters (e.g., date range, staff member) continue in a similar pattern...
 
     if (openedStartDate && openedEndDate) {
-      filterClauses.push(
-        `date_opened BETWEEN $${filterValues.length + 1} AND $${
-          filterValues.length + 2
-        }`
-      );
+      filterClauses.push(`date_opened BETWEEN $${filterValues.length + 1} AND $${filterValues.length + 2}`);
       filterValues.push(openedStartDate, openedEndDate);
     } else if (openedStartDate) {
       filterClauses.push(`date_opened >= $${filterValues.length + 1}`);
@@ -220,37 +226,26 @@ app.get("/api/jobs", async (req, res) => {
     }
 
     if (staffMember) {
-      const staffFilter = `(
-        staff1 ILIKE '%${staffMember}%' OR 
-        staff2 ILIKE '%${staffMember}%' OR 
-        staff3 ILIKE '%${staffMember}%'
-    )`;
-      filterClauses.push(staffFilter);
+      filterClauses.push(`staff_member ILIKE $${filterValues.length + 1}`);
+      filterValues.push(`%${staffMember}%`);
     }
 
-    const whereClause =
-      filterClauses.length > 0 ? `WHERE ${filterClauses.join(" AND ")}` : "";
+    // Compile the WHERE clause from the filter clauses
+    const whereClause = filterClauses.length > 0 ? `WHERE ${filterClauses.join(" AND ")}` : "";
 
-    // Calculate the offset for pagination
-    const offset = (page - 1) * pageSize;
+    // Formulate the main query with pagination and filters
+    const query = `SELECT * FROM client_data ${whereClause} ORDER BY date_opened DESC, cvg_job_number LIMIT $${filterValues.length + 1} OFFSET $${filterValues.length + 2}`;
+    const result = await pool.query(query, [...filterValues, pageSize, (page - 1) * pageSize]);
 
-    // Query to get paginated and filtered results
-    const query = `SELECT * FROM client_data ${whereClause} ORDER BY date_opened IS NULL, date_opened ASC, cvg_job_number LIMIT $${
-      filterValues.length + 1
-    } OFFSET $${filterValues.length + 2}`;
-
-    // Execute the query with combined filterValues, pageSize, and offset
-    const result = await pool.query(query, [...filterValues, pageSize, offset]);
-
-    // Query to get the total count of records with filters
+    // Formulate the count query to get the total number of records for pagination
     const countQuery = `SELECT COUNT(*) FROM client_data ${whereClause}`;
-
-    // Execute the count query with filterValues
     const countResult = await pool.query(countQuery, filterValues);
     const totalItems = parseInt(countResult.rows[0].count);
 
-    // Calculate total pages
+    // Calculate the total number of pages
     const totalPages = Math.ceil(totalItems / pageSize);
+
+    // Send the paginated and filtered results
     res.json({
       data: result.rows,
       currentPage: page,
@@ -258,12 +253,11 @@ app.get("/api/jobs", async (req, res) => {
       totalItems: totalItems,
     });
   } catch (error) {
-    console.error("Error executing query", error.message);
-    console.error("Detailed stack:", error.stack);
-    console.error("Error executing query", error);
+    console.error("Error fetching jobs:", error.message);
     res.status(500).send("Internal Server Error");
   }
 });
+
 
 app.put("/api/jobs/:currentCvgJobNumber", async (req, res) => {
   try {
